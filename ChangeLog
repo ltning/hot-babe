@@ -1,3 +1,14 @@
+2004-08-25  Cypou  <cyprien33@laposte.net>
+   * loader.c: Used to load images from a directory
+   * hot-babe.c: Use of loader.c, added small optimisations, added a -n
+                 (--nice) option to automatically nice the hot-babe. Added
+		 --dir option to specify another images directory.
+   
+2004-08-22  DindinX  <david@dindinx.org>
+
+   * hot-babe.c: Don't divide by zero (reported by different people),
+	              some small optimisations, too.
+
 2002-09-21  DindinX <david@dindinx.org>
 
    * hot-babe.c: applied a patch by  Pascal Terjan <pascal.terjan@free.fr>

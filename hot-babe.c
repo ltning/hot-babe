@@ -32,11 +32,7 @@
 #include <gdk/gdkx.h>
 #include <gdk-pixbuf/gdk-pixbuf.h>
 
-#include "hb01/hb01_0.xpm"
-#include "hb01/hb01_1.xpm"
-#include "hb01/hb01_2.xpm"
-#include "hb01/hb01_3.xpm"
-#include "hb01/hb01_4.xpm"
+#include "loader.h"
 
 static int system_cpu(void);
 static void hotbabe_setup_samples(void);
@@ -49,10 +45,10 @@ static void print_usage(void);
 typedef struct
 {
   /* X11 stuff */
-  gint       height, width;
   GdkWindow *win;        /* main window */
-  GdkPixbuf *current_pixbuf;
-  GdkPixbuf *pixbuf[10];
+  HotBabeAnim anim;
+  guchar **pixels;
+  guchar *dest;
 
   int samples;
 
@@ -66,8 +62,6 @@ typedef struct
   gboolean noNice;
   guint    delay;  
 } HotBabeData;
-
-int nb_xpm;
 
 HotBabeData bm;
 
@@ -105,7 +99,7 @@ static int system_cpu(void)
    *   is calculated as the extra amount of work that has been performed
    *   since the last sample. yah, right, what the fuck does that mean?
    */
-  if (ototal == 0)    /* ototal == 0 means that this is the first time we get here */
+  if (ototal == 0 || total==ototal)    /* ototal == 0 means that this is the first time we get here */
     cpuload = 0;
   else
     cpuload = (256 * (load - oload)) / (total - ototal);
@@ -113,28 +107,21 @@ static int system_cpu(void)
   return cpuload;
 }
 
-
+GdkPixmap     *pixmap;
+GdkGC *gc;
 
 /* This is the function that actually creates the display widgets */
 static void create_hotbabe_window(void)
 {
 #define MASK GDK_BUTTON_PRESS_MASK | GDK_ENTER_NOTIFY_MASK | GDK_LEAVE_NOTIFY_MASK
   GdkWindowAttr  attr;
-  GdkPixmap     *pixmap;
   GdkBitmap     *mask;
 
-  bm.current_pixbuf = gdk_pixbuf_new_from_xpm_data((const char**)hb01_4_xpm);
-  bm.pixbuf[0] = gdk_pixbuf_new_from_xpm_data((const char **)hb01_4_xpm);
-  bm.pixbuf[1] = gdk_pixbuf_new_from_xpm_data((const char **)hb01_3_xpm);
-  bm.pixbuf[2] = gdk_pixbuf_new_from_xpm_data((const char **)hb01_2_xpm);
-  bm.pixbuf[3] = gdk_pixbuf_new_from_xpm_data((const char **)hb01_1_xpm);
-  bm.pixbuf[4] = gdk_pixbuf_new_from_xpm_data((const char **)hb01_0_xpm);
-  nb_xpm = 5;
-  bm.width = gdk_pixbuf_get_width(bm.pixbuf[0]);
-  bm.height = gdk_pixbuf_get_height(bm.pixbuf[0]);
+  bm.anim.width = gdk_pixbuf_get_width(bm.anim.pixbuf[0]);
+  bm.anim.height = gdk_pixbuf_get_height(bm.anim.pixbuf[0]);
  
-  attr.width = bm.width;
-  attr.height = bm.height;
+  attr.width = bm.anim.width;
+  attr.height = bm.anim.height;
   attr.title = "hot-babe";
   attr.event_mask = MASK;
   attr.wclass = GDK_INPUT_OUTPUT;
@@ -154,28 +141,25 @@ static void create_hotbabe_window(void)
   }
   gdk_window_set_decorations(bm.win, 0);
 
-  pixmap =
-    gdk_pixmap_create_from_xpm_d(bm.win, &mask, NULL, hb01_4_xpm);
-
+  gdk_pixbuf_render_pixmap_and_mask( bm.anim.pixbuf[4], &pixmap, &mask, 127 );
+  
   gdk_window_shape_combine_mask(bm.win, mask, 0, 0);
+  gdk_pixbuf_render_pixmap_and_mask( bm.anim.pixbuf[0], &pixmap, &mask, 127 );
   gdk_window_set_back_pixmap(bm.win, pixmap, False);
-
+  
   gdk_window_show(bm.win);
-
-  hotbabe_setup_samples();
+  
+  gc = gdk_gc_new (pixmap);
 #undef MASK
 }
 
 static void hotbabe_update(void)
 {
-  unsigned int loadPercentage;
-  static unsigned int old_percentage = 0;
-  GdkPixmap *pixmap;
-  GdkBitmap *mask;
-  guint i;
-  guchar *pixels, *pixels1, *pixels2;
-  GdkPixbuf *bla;
-  static  gint robinet = 0;
+         guint   loadPercentage;
+  static guint   old_percentage = 0;
+         guint   i;
+         guchar *pixels1, *pixels2, *src1, *src2, *dest;
+  static gint    robinet = 0;
 
   /* Find out the CPU load */
   loadPercentage = system_cpu();
@@ -197,47 +181,42 @@ static void hotbabe_update(void)
   
   if (loadPercentage != old_percentage)
   {
-    gint range = 256  / (nb_xpm-1);
+    gint range = 256  / (bm.anim.samples-1);
     gint index = loadPercentage/range;
 
     old_percentage = loadPercentage;
-    if  (index>nb_xpm-1) index = nb_xpm-1;
-    pixels  = gdk_pixbuf_get_pixels(bm.current_pixbuf);
-    pixels1 = gdk_pixbuf_get_pixels(bm.pixbuf[index]);
-    if (index  == nb_xpm-1)
-      pixels2 = gdk_pixbuf_get_pixels(bm.pixbuf[index]);
+    if  (index>bm.anim.samples-1) index = bm.anim.samples-1;
+    pixels1 = bm.pixels[index];
+    if (index  == bm.anim.samples-1)
+      pixels2 = bm.pixels[index];
     else
-      pixels2 = gdk_pixbuf_get_pixels(bm.pixbuf[index+1]);
+      pixels2 = bm.pixels[index+1];
 
     loadPercentage = loadPercentage % range;
-    for (i=0  ;  i<bm.height*bm.width ;  i++)
+    dest = bm.dest; src1 = pixels1; src2 = pixels2;
+    for (i=0  ;  i<bm.anim.height*bm.anim.width ;  i++)
     {
-      guint val;
-      val = ((guint)pixels2[i*4+0])*loadPercentage+((guint)pixels1[i*4+0])*(range-loadPercentage);
-      val /= range;
-      pixels[i*4+0] = val;
-      val = ((guint)pixels2[i*4+1])*loadPercentage+((guint)pixels1[i*4+1])*(range-loadPercentage);
-      val /= range;
-      pixels[i*4+1] = val;
-      val = ((guint)pixels2[i*4+2])*loadPercentage+((guint)pixels1[i*4+2])*(range-loadPercentage);
-      val /= range;
-      pixels[i*4+2] = val;
-      val = ((guint)pixels2[i*4+3])*loadPercentage+((guint)pixels1[i*4+3])*(range-loadPercentage);
-      val /= range;
-      pixels[i*4+3] = val;
+      guint val, j;
+
+      if (src1[3])
+      {
+        for (j=0;j<3;j++)
+        {
+          val = ((guint)*(src2++))*loadPercentage+((guint)*(src1++))*(range-loadPercentage);
+          //val /= range;
+          *(dest++) = (val >> 6);  // bad hack!
+        }
+        src1++;
+        src2++;
+      } else
+      {
+        src1+=4;src2+=4;dest+=3;
+      }
     }
-    bla = gdk_pixbuf_new_from_data(pixels, GDK_COLORSPACE_RGB,
-                                   gdk_pixbuf_get_has_alpha(bm.pixbuf[0]),
-                                   gdk_pixbuf_get_bits_per_sample(bm.pixbuf[0]),
-                                   gdk_pixbuf_get_width(bm.pixbuf[0]),
-                                   gdk_pixbuf_get_height(bm.pixbuf[0]),
-                                   gdk_pixbuf_get_rowstride(bm.pixbuf[0]), NULL, NULL);
-    
-    gdk_pixbuf_render_pixmap_and_mask(bla, &pixmap, &mask, 127);
-    gdk_pixbuf_unref(bla);
+  
+    gdk_draw_rgb_image(pixmap, gc, 0, 0, bm.anim.width, bm.anim.height, GDK_RGB_DITHER_NONE,
+                       bm.dest, 3 * bm.anim.width);
     gdk_window_set_back_pixmap(bm.win, pixmap, False);
-    gdk_pixmap_unref(pixmap);
-    gdk_bitmap_unref(mask);
     gdk_window_clear(bm.win);
   }
 }
@@ -267,12 +246,15 @@ static void print_usage(void)
   g_print(" -d, --delay  n       update every n millisecondes.\n");
   g_print(" -h, --help           show this message and exit.\n");
   g_print(" -N, --noNice         don't count nice time in usage.\n");
+  g_print(" -n, --nice  n        set self-nice to n.\n");
+  g_print("     --dir directory  use images from directory.\n");
 }
 
 int main(int argc, char **argv)
 {
   GdkEvent *event;
   gint      i;
+  gchar *dir;
 
   /* initialize GDK */
   if (!gdk_init_check(&argc, &argv))
@@ -290,6 +272,8 @@ int main(int argc, char **argv)
   bm.incremental = FALSE;
   bm.delay       = 15000;
   bm.noNice      = FALSE;
+  
+  dir            = NULL;
 
   for (i=1 ; i<argc ; i++)
   {
@@ -299,6 +283,7 @@ int main(int argc, char **argv)
       if  (i<argc)
       {
         bm.threshold = atoi(argv[i])*256/100;
+        bm.threshold = MIN (255, bm.threshold);
       }        
     } else if (!strcmp(argv[i], "--help") || !strcmp(argv[i], "-h"))
     {
@@ -310,6 +295,13 @@ int main(int argc, char **argv)
     } else if (!strcmp(argv[i], "--noNice") || !strcmp(argv[i], "-N"))
     {
       bm.noNice = TRUE;
+    } else if (!strcmp(argv[i], "--nice") || !strcmp(argv[i], "-n"))
+    {
+      i++;
+      if  (i<argc)
+      {
+        nice( atoi(argv[i]) );
+      }
     } else if (!strcmp(argv[i], "--delay") || !strcmp(argv[i], "-d"))
     {
       i++;
@@ -317,10 +309,36 @@ int main(int argc, char **argv)
       {
         bm.delay = atoi(argv[i])*1000;
       }        
+    } else if (!strcmp(argv[i], "--dir"))
+    {
+      printf( "argv = %s\n", argv[i] );
+      printf( "argv = %s\n", argv[i+1] );
+      i++;
+      if  (i<argc)
+      {
+        dir = argv[i];
+      }        
     }
   }
  
+  if( dir != NULL ) {
+    if( load_anim( &bm.anim, dir ) ) {
+      fprintf( stderr, "Can't find pictures\n" );
+      return 1;
+    }
+  } else if( load_anim( &bm.anim, DESTDIR "/share/hot-babe/hb01" ) &&
+      load_anim( &bm.anim, "hb01" ) ) {
+    fprintf( stderr, "Can't find pictures\n" );
+    return 1;
+  }
   create_hotbabe_window();
+
+  bm.pixels = malloc( sizeof(guchar*) * bm.anim.samples );
+  for( i = 0 ; i < bm.anim.samples ; i++ )
+    bm.pixels[i] = gdk_pixbuf_get_pixels( bm.anim.pixbuf[i] );
+  bm.dest = malloc( bm.anim.width * bm.anim.height * 3 );
+
+  hotbabe_setup_samples();
 
   while (1)
   {
