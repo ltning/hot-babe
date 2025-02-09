@@ -3,22 +3,15 @@
  * Copyright (C) 2002 Bruno Bellamy.
  *
  * This program is free software; you can redistribute it and/or modify
- * it under the terms of the GNU General Public License as published by
- * the Free Software Foundation; either version 2 of the License, or
- * (at your option) any later version.
+ * it under the terms of the artistic License
  *
- * This program is distributed in the hope that it will be useful,
- * but WITHOUT ANY WARRANTY; without even the implied warranty of
- * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
- * GNU General Public License for more details.
+ * THIS PACKAGE IS PROVIDED "AS IS" AND WITHOUT ANY EXPRESS OR IMPLIED
+ * WARRANTIES, INCLUDING, WITHOUT LIMITATION, THE IMPLIED WARRANTIES
+ * OF MERCHANTIBILITY AND FITNESS FOR A PARTICULAR PURPOSE. See the
+ * Artistic License for more details.
  *
- * You should have received a copy of the GNU General Public License
- * along with this program; if not, write to the Free Software
- * Foundation, Inc., 59 Temple Place - Suite 330, Boston, MA 02111-1307, USA.
+ * this code is using some ideas from wmbubble (timecop@japan.co.jp)
  *
- * Please note that part of this code is from wmbubble, and such should be
- * copyrighted by <timecop@japan.co.jp>
- * 
  */
 
 /* general includes */
@@ -27,10 +20,14 @@
 #include <stdlib.h>
 #include <string.h>
 #ifdef __FreeBSD__
+#include <sys/time.h>
 #include <sys/resource.h>
 #include <sys/types.h>
 #include <sys/sysctl.h>
+#ifndef CPUSTATES                                                              
+#include <sys/dkstat.h>
 #endif
+#endif                                                                         
 
 /* x11 includes */
 #include <gdk/gdk.h>
@@ -52,6 +49,7 @@ typedef struct
   /* X11 stuff */
   GdkWindow *win;        /* main window */
   HotBabeAnim anim;
+  gint x,y;
   guchar **pixels;
   guchar *dest;
 
@@ -69,6 +67,21 @@ typedef struct
 } HotBabeData;
 
 HotBabeData bm;
+
+#if 0
+/* FIXME New BSD and Solaris code.. to check.
+ * doesn't work with Linux (getloadavg return 1.000) */
+static int system_cpu(void)
+{
+  int rc;
+  double loadavg[15];
+  rc=getloadavg(loadavg, 1); 
+  while( rc-- )
+    printf( "load = %f\n", loadavg[rc] );
+  rc=100*loadavg[0];
+  return rc;
+}
+#endif
 
 /* returns current CPU load in percent, 0 to 256 */
 static int system_cpu(void)
@@ -94,14 +107,14 @@ static int system_cpu(void)
 #endif
 #ifdef __FreeBSD__
   if (sysctlbyname("kern.cp_time", &cp_time, &len, NULL, 0) < 0)
-	  (void)fprintf(stderr, "Cannot get kern.cp_time");
-	       
+    (void)fprintf(stderr, "Cannot get kern.cp_time");
+
   ab = cp_time[CP_USER];
   ac = cp_time[CP_NICE];
   ad = cp_time[CP_SYS];
   ae = cp_time[CP_IDLE];
 #endif
-	  
+
 
   /* Find out the CPU load */
   /* user + sys = load
@@ -128,7 +141,7 @@ static int system_cpu(void)
     cpuload = 0;
   else
     cpuload = (256 * (load - oload)) / (total - ototal);
-  
+
   return cpuload;
 }
 
@@ -141,12 +154,18 @@ static void create_hotbabe_window(void)
 #define MASK GDK_BUTTON_PRESS_MASK | GDK_ENTER_NOTIFY_MASK | GDK_LEAVE_NOTIFY_MASK
   GdkWindowAttr  attr;
   GdkBitmap     *mask;
+  GdkScreen *defscrn;
 
   bm.anim.width = gdk_pixbuf_get_width(bm.anim.pixbuf[0]);
   bm.anim.height = gdk_pixbuf_get_height(bm.anim.pixbuf[0]);
- 
+  defscrn=gdk_screen_get_default();
+
   attr.width = bm.anim.width;
   attr.height = bm.anim.height;
+  if( bm.x < 0 ) bm.x += 1 + gdk_screen_get_width(defscrn) - attr.width;
+  if( bm.y < 0 ) bm.y += 1 + gdk_screen_get_height(defscrn) - attr.height;
+  attr.x = bm.x;
+  attr.y = bm.y;
   attr.title = "hot-babe";
   attr.event_mask = MASK;
   attr.wclass = GDK_INPUT_OUTPUT;
@@ -157,33 +176,38 @@ static void create_hotbabe_window(void)
   attr.window_type = GDK_WINDOW_TOPLEVEL;
 
   bm.win = gdk_window_new(NULL, &attr,
-                          GDK_WA_TITLE | GDK_WA_WMCLASS |
-                          GDK_WA_VISUAL | GDK_WA_COLORMAP);
+      GDK_WA_TITLE | GDK_WA_WMCLASS |
+      GDK_WA_VISUAL | GDK_WA_COLORMAP |
+      GDK_WA_X | GDK_WA_Y);
   if (!bm.win)
   {
     fprintf(stderr, "Cannot make toplevel window\n");
     exit (-1);
   }
   gdk_window_set_decorations(bm.win, 0);
+  gdk_window_set_skip_taskbar_hint(bm.win, TRUE);
+  gdk_window_set_skip_pager_hint(bm.win, TRUE); 
+  gdk_window_set_type_hint(bm.win, GDK_WINDOW_TYPE_HINT_DOCK);
+//  gdk_window_set_keep_below(bm.win, TRUE);
 
-  gdk_pixbuf_render_pixmap_and_mask( bm.anim.pixbuf[4], &pixmap, &mask, 127 );
-  
+  gdk_pixbuf_render_pixmap_and_mask( bm.anim.pixbuf[bm.anim.samples-1], &pixmap, &mask, 127 );
+
   gdk_window_shape_combine_mask(bm.win, mask, 0, 0);
   gdk_pixbuf_render_pixmap_and_mask( bm.anim.pixbuf[0], &pixmap, &mask, 127 );
   gdk_window_set_back_pixmap(bm.win, pixmap, False);
-  
+
   gdk_window_show(bm.win);
-  
+
   gc = gdk_gc_new (pixmap);
 #undef MASK
 }
 
 static void hotbabe_update(void)
 {
-         guint   loadPercentage;
+  guint   loadPercentage;
   static guint   old_percentage = 0;
-         guint   i;
-         guchar *pixels1, *pixels2, *src1, *src2, *dest;
+  guint   i;
+  guchar *pixels1, *pixels2, *src1, *src2, *dest;
   static gint    robinet = 0;
 
   /* Find out the CPU load */
@@ -196,14 +220,14 @@ static void hotbabe_update(void)
     else
       loadPercentage = (loadPercentage-bm.threshold)*256/(256-bm.threshold);
   }
-  
+
   robinet +=loadPercentage/50-3;
 
   robinet = CLAMP(robinet, 0, 256);
 
   if (bm.incremental)
     loadPercentage = robinet;
-  
+
   if (loadPercentage != old_percentage)
   {
     gint range = 256  / (bm.anim.samples-1);
@@ -212,10 +236,8 @@ static void hotbabe_update(void)
     old_percentage = loadPercentage;
     if  (index>bm.anim.samples-1) index = bm.anim.samples-1;
     pixels1 = bm.pixels[index];
-    if (index  == bm.anim.samples-1)
-      pixels2 = bm.pixels[index];
-    else
-      pixels2 = bm.pixels[index+1];
+    if (index  == bm.anim.samples-1) pixels2 = bm.pixels[index];
+    else pixels2 = bm.pixels[index+1];
 
     loadPercentage = loadPercentage % range;
     dest = bm.dest; src1 = pixels1; src2 = pixels2;
@@ -228,8 +250,8 @@ static void hotbabe_update(void)
         for (j=0;j<3;j++)
         {
           val = ((guint)*(src2++))*loadPercentage+((guint)*(src1++))*(range-loadPercentage);
-          //val /= range;
-          *(dest++) = (val >> 6);  // bad hack!
+          *(dest++) = val/range;
+          //*(dest++) = (val >> 6);  // bad hack!
         }
         src1++;
         src2++;
@@ -238,9 +260,9 @@ static void hotbabe_update(void)
         src1+=4;src2+=4;dest+=3;
       }
     }
-  
+
     gdk_draw_rgb_image(pixmap, gc, 0, 0, bm.anim.width, bm.anim.height, GDK_RGB_DITHER_NONE,
-                       bm.dest, 3 * bm.anim.width);
+        bm.dest, 3 * bm.anim.width);
     gdk_window_set_back_pixmap(bm.win, pixmap, False);
     gdk_window_clear(bm.win);
   }
@@ -261,6 +283,10 @@ static void hotbabe_setup_samples(void)
   }
 }
 
+static void print_version(void)
+{
+  g_print("hot-babe version " VERSION "\n\n");
+}
 
 static void print_usage(void)
 {
@@ -273,19 +299,40 @@ static void print_usage(void)
   g_print(" -N, --noNice         don't count nice time in usage.\n");
   g_print(" -n, --nice  n        set self-nice to n.\n");
   g_print("     --dir directory  use images from directory.\n");
+  g_print("     --geometry {+|-}x{+|-}y  position the hot-babe.\n");
+  g_print(" -v, --version        show version and exit.\n");
+}
+
+void parse_geometry( char *arg )
+{
+  char sign[2];
+  guint val[2];
+  int i = 0;
+  
+  i = sscanf( arg, "%c%u%c%u", &sign[0], &val[0], &sign[1], &val[1] );
+  if( i != 4 )
+    return;
+  
+  if( sign[0] == '+' ) bm.x = val[0];
+  if( sign[0] == '-' ) bm.x = -1-val[0];
+  if( sign[1] == '+' ) bm.y = val[1];
+  if( sign[1] == '-' ) bm.y = -1-val[1];
 }
 
 int main(int argc, char **argv)
 {
   GdkEvent *event;
+
   gint      i;
   gchar *dir;
+  char conf[256];
+  FILE *f;
 
   /* initialize GDK */
   if (!gdk_init_check(&argc, &argv))
   {
     fprintf(stderr,
-            "GDK init failed, bye bye.  Check \"DISPLAY\" variable.\n");
+        "GDK init failed, bye bye.  Check \"DISPLAY\" variable.\n");
     exit(-1);
   }
   gdk_rgb_init();
@@ -297,8 +344,56 @@ int main(int argc, char **argv)
   bm.incremental = FALSE;
   bm.delay       = 15000;
   bm.noNice      = FALSE;
-  
+  bm.x = -1;
+  bm.y = -1;
+
   dir            = NULL;
+
+
+  snprintf( conf, 256, "%s/.hot-babe/config", g_get_home_dir() );
+  f = fopen( conf, "r" );
+  if( f )
+  {
+    char line[256], *l;
+    guint uval;
+    gint val;
+    char sval[260];
+
+    while( (l=fgets( line, 255, f )) )
+    {
+      while( *l )
+      {
+        if( *l == '\n' || *l == '#' ) *l = 0;
+        l++;
+      }
+      if( !*line ) continue;
+
+      if( sscanf( line, "threshold %u", &uval ) == 1 )
+      {
+        bm.threshold = uval*256/100;
+        bm.threshold = MIN (255, bm.threshold);
+      } else if ( !strcmp(line, "incremental") )
+      {
+        bm.incremental = TRUE;
+      } else if (!strcmp(line, "noNice") )
+      {
+        bm.noNice = TRUE;
+      } else if ( sscanf( line, "nice %d", &val) == 1 )
+      {
+        nice( val );
+      } else if ( sscanf( line, "delay %u", &uval) == 1 )
+      {
+        bm.delay = uval*1000;
+      } else if ( sscanf( line, "dir %s", sval) == 1)
+      {
+        dir = strdup( sval );
+      } else if ( sscanf( line, "geometry %s", sval) == 1)
+      {
+        parse_geometry( sval );
+      }
+    }
+    fclose(f);
+  }
 
   for (i=1 ; i<argc ; i++)
   {
@@ -310,6 +405,10 @@ int main(int argc, char **argv)
         bm.threshold = atoi(argv[i])*256/100;
         bm.threshold = MIN (255, bm.threshold);
       }        
+    } else if (!strcmp(argv[i], "--version") || !strcmp(argv[i], "-v"))
+    {
+      print_version();
+      exit(0);
     } else if (!strcmp(argv[i], "--help") || !strcmp(argv[i], "-h"))
     {
       print_usage();
@@ -336,25 +435,37 @@ int main(int argc, char **argv)
       }        
     } else if (!strcmp(argv[i], "--dir"))
     {
-      printf( "argv = %s\n", argv[i] );
-      printf( "argv = %s\n", argv[i+1] );
       i++;
       if  (i<argc)
       {
         dir = argv[i];
       }        
+    } else if (!strcmp(argv[i], "--geometry"))
+    {
+      i++;
+      if  (i<argc)
+      {
+        parse_geometry( argv[i] );
+      }        
     }
   }
- 
+
   if( dir != NULL ) {
-    if( load_anim( &bm.anim, dir ) ) {
+    char path[256], home[256];
+    snprintf( path, 256, PREFIX "/share/hot-babe/%s", dir );
+    snprintf( home, 256, "%s/.hot-babe/%s", g_get_home_dir(), dir );
+    if( load_anim( &bm.anim, path ) &&
+        load_anim( &bm.anim, home ) &&
+        load_anim( &bm.anim, dir ) ) {
       fprintf( stderr, "Can't find pictures\n" );
       return 1;
     }
-  } else if( load_anim( &bm.anim, DESTDIR "/share/hot-babe/hb01" ) &&
-      load_anim( &bm.anim, "hb01" ) ) {
-    fprintf( stderr, "Can't find pictures\n" );
-    return 1;
+  } else {
+    if( load_anim( &bm.anim, PREFIX "/share/hot-babe/hb01" ) &&
+        load_anim( &bm.anim, "hb01" ) ) {
+      fprintf( stderr, "Can't find pictures\n" );
+      return 1;
+    }
   }
   create_hotbabe_window();
 

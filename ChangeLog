@@ -1,6 +1,45 @@
+2004-12-05  Cypou  <cyprien33@laposte.net>
+
+   * hot-babe.c: Added option --version, -v
+                 Bugfix when the number of pictures was not 5,
+                 resulting on awful colors.
+                 Inform the wm that hot-babe is a dock
+                 (I really didn't check it)
+                 Added option --geometry to position the hot-babe
+		 
+   * Added hot-babe pixmap
+
+   * hot-babe.1: Updated
+   
+2004-12-04  Cypou  <cyprien33@laposte.net>
+
+   * Added configuration example file
+   
+   * hot-babe.c: Fixed segfault when the number of pictures was smaller than 5
+                 Added support of a user configuration and pictures directory
+                 Fixed some include missing for FreeBSD
+		 
+   * hot-babe.1: Updated
+   
+   * Makefile: Fixed to follow right DESTDIR/PREFIX usage ;-)
+
+2004-11-14  Cypou  <cyprien33@laposte.net>
+
+   * Added copyright file
+   * LICENSE is now the 'Artistic License'.
+
+
+2004-11-13  Temsa  <florian.traverse@cpe.fr>
+
+   * loader.c: porting to gdk2, just some tricky modification for the new API
+
+   * Makefile: porting to gdk2/gdk-pixbuf2, using pkg-config
+
+
 2004-10-20  Roman Bogorodskiy <bogorodskiy@inbox.ru>
 
    * Makefile: FreeBSD port
+
    * hot-babe.c: FreeBSD port: use of sysctl "kern.cp_time"
 
 
@@ -12,9 +51,10 @@
 2004-08-25  Cypou  <cyprien33@laposte.net>
 
    * loader.c: Used to load a set of images from a directory
+
    * hot-babe.c: Use of loader.c, added small optimisations, added a -n
-                 (--nice) option to automatically nice the hot-babe. Added
-		 --dir option to specify another images directory.
+                 (--nice) option to automatically nice the hot-babe.i
+		 Added --dir option to specify another images directory.
    
 2004-08-22  DindinX  <david@dindinx.org>
 

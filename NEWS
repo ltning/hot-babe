@@ -1,3 +1,22 @@
+0.2.2:
+- Added option --version, -v
+- Added hot-babe pixmap
+- Bugfix when the number of pictures was not 5, resulting on awful colors
+- Inform the wm that hot-babe is a dock (I really didn't check it)
+- Added option --geometry to position the hot-babe
+
+0.2.1:
+- Fixed some include missing for FreeBSD
+- Added support of a user configuration and pictures directory
+- Added configuration example file
+- Fixed segfault when the number of pictures was smaller than 5
+- Update man page
+- Fixed Makefile to follow right DESTDIR/PREFIX usage ;-)
+
+0.2.0:
+- Using gdk2 and gdk-pixbuf2
+- License is now "Artistic License" for code and pictures
+
 0.1.6:
 - FreeBSD port
 
