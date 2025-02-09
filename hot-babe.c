@@ -26,6 +26,11 @@
 #include <unistd.h>
 #include <stdlib.h>
 #include <string.h>
+#ifdef __FreeBSD__
+#include <sys/resource.h>
+#include <sys/types.h>
+#include <sys/sysctl.h>
+#endif
 
 /* x11 includes */
 #include <gdk/gdk.h>
@@ -69,14 +74,34 @@ HotBabeData bm;
 static int system_cpu(void)
 {
   unsigned int  cpuload;
+  int           i;
+#ifdef __linux__
   u_int64_t     load, total, oload, ototal;
   u_int64_t     ab, ac, ad, ae;
-  int           i;
   FILE         *stat;
+#endif
+#ifdef __FreeBSD__
+  long load, total, oload, ototal;
+  long ab, ac, ad, ae;
+  long cp_time[CPUSTATES];
+  size_t len = sizeof(cp_time);
+#endif
 
+#ifdef __linux__
   stat = fopen("/proc/stat", "r");
   fscanf(stat, "%*s %Ld %Ld %Ld %Ld", &ab, &ac, &ad, &ae);
   fclose(stat);
+#endif
+#ifdef __FreeBSD__
+  if (sysctlbyname("kern.cp_time", &cp_time, &len, NULL, 0) < 0)
+	  (void)fprintf(stderr, "Cannot get kern.cp_time");
+	       
+  ab = cp_time[CP_USER];
+  ac = cp_time[CP_NICE];
+  ad = cp_time[CP_SYS];
+  ae = cp_time[CP_IDLE];
+#endif
+	  
 
   /* Find out the CPU load */
   /* user + sys = load
@@ -103,7 +128,7 @@ static int system_cpu(void)
     cpuload = 0;
   else
     cpuload = (256 * (load - oload)) / (total - ototal);
-
+  
   return cpuload;
 }
 

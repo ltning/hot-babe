@@ -2,7 +2,7 @@
 .\" First parameter, NAME, should be all caps
 .\" Second parameter, SECTION, should be 1-8, maybe w/ subsection
 .\" other parameters are allowed: see man(7), man(1)
-.TH HOT-BABE 1 "September 20, 2002"
+.TH HOT-BABE 1 "August 25, 2004"
 .\" Please adjust this date whenever revising the manpage.
 .\"
 .\" Some roff macros, for reference:
@@ -24,9 +24,6 @@ hot-babe \- is a small graphical utility which display the system activity in a 
 This manual page documents briefly the
 .B hot-babe
 command.
-This manual page was written for the Debian GNU/Linux distribution
-because the original program does not have a manual page.
-.PP
 .\" TeX users may be more comfortable with the \fB<whatever>\fP and
 .\" \fI<whatever>\fP escape sequences to invode bold face and italics,
 .\" respectively.
@@ -48,10 +45,32 @@ ponder every sample with time, the result is a somewhat smoother animation, and 
 .TP
 .B \-N, \-\-noNice
 Don't consider reniced processes. This is usefull if you use seti@home or distributed.net, which always eat almost all the CPU.
+.TP
 .B \-n, \-\-nice
 n Put the hot-babe process in nice n.
-.SH SEE ALSO
+.TP
+.B \-\-dir
+directory give the directory where hot-babe must load the pictures.
+.SH FILES
+.TP
+.B share/hot-babe/hb01/
+directory of hot-babes pictures.
+.P
+.B Note:
+This directory must contain a file named "descr" which gives some info to the hot-babe process. The first line gives the number of pictures to use, and then the name of the pictures, one per line.
+.P
+Here is an example:
+.RS
+.ft CW
+.nf
+.ne
+5
+hb01_4.png
+hb01_3.png
+hb01_2.png
+hb01_1.png
+hb01_0.png
 .br
 .SH AUTHOR
-This manual page was written for the Debian GNU/Linux system (but may be used by others).
+This page has been updated by Cyprien <cyprien33@laposte.net>
 

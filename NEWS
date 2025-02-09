@@ -1,7 +1,15 @@
+0.1.6:
+- FreeBSD port
+
+0.1.5:
+- updated man page (added new options)
+- updated Makefile (removed one INSTALL line)
+
 0.1.4:
 - New option: -n, --nice
 - New option: --dir
 - Load images from a directory
+- Pictures are in a separate directory instead than inlined
 
 0.1.3:
 - bugfixes and optimisation release. Nothing new here.

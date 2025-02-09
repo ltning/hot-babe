@@ -1,5 +1,17 @@
+2004-10-20  Roman Bogorodskiy <bogorodskiy@inbox.ru>
+
+   * Makefile: FreeBSD port
+   * hot-babe.c: FreeBSD port: use of sysctl "kern.cp_time"
+
+
+2004-09-13  Cypou  <cyprien33@laposte.net>
+
+   * added new options in man page
+   * updated Makefile
+   
 2004-08-25  Cypou  <cyprien33@laposte.net>
-   * loader.c: Used to load images from a directory
+
+   * loader.c: Used to load a set of images from a directory
    * hot-babe.c: Use of loader.c, added small optimisations, added a -n
                  (--nice) option to automatically nice the hot-babe. Added
 		 --dir option to specify another images directory.
