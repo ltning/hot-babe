@@ -1,0 +1,16 @@
+2002-09-21  DindinX <david@dindinx.org>
+
+   * hot-babe.c: applied a patch by  Pascal Terjan <pascal.terjan@free.fr>
+                 which add the -N (--noNice) command line option. With this
+                 option, the reniced processes aren't counted. This is usefull
+                 if you use seti@home or distributed.net, which always eat
+                 almost all the CPU.
+
+   * hot-babe.1: added from the debian package, and somewhat improved it.
+                 Added the -N option description.
+
+2002-09-20  DindinX <david@dindinx.org>
+
+   * hot-babe.c: added a missing #include <string.h>
+                 reported by Gilles Cuesta <gcuesta@netimedias.com>
+

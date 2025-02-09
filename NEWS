@@ -1,0 +1,10 @@
+0.1.2:
+-New option: -N, --noNice
+ With this option, the reniced processes aren't counted. This is usefull
+ if you use seti@home or distributed.net, which always eat almost all
+ the CPU. (patch from Pascal Terjan <pascal.terjan@free.fr>)
+-a man page!
+
+0.1.1:
+ added a missing #include <string.h>
+ (reported by Gilles Cuesta <gcuesta@netimedias.com>)
